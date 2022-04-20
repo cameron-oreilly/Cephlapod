@@ -13,6 +13,9 @@ private:
 	int row, col;
 	int player; //1 = white; -1 = black
 	int **grid; // 0 = empty; other values for pip count; positive for white; negative for black
+	vector<Cell> cells;
+	//vector<Cell> cellNeighbors;
+	priority_queue<Cell> cellNeighbors;
 
 public:
 
@@ -27,6 +30,7 @@ public:
 		for (int i = 0; i < row; i++) {
 			for (int j = 0; j < col; j++) {
 				grid[i][j] = 0;
+				cells.push_back(Cell(i, j, grid[i][j]));
 				emptyCells.push_back(i * col + j); // init indicies of empty cells (k = x * n + y)
 			}
 		}
@@ -39,6 +43,9 @@ public:
 			delete[] grid[i];
 
 		delete[] grid;
+		
+		cells.clear();
+		
 	}
 
 	Board(const Board &cboard) {//Copy constructor
@@ -53,9 +60,16 @@ public:
 			for (int j = 0; j < col; j++) {
 				grid[i][j] = cboard.grid[i][j];
 			}
+
+		for (int i = 0; i < cboard.cells.size(); i++) {
+			cells.push_back(cboard.cells[i]);
+		}
+
 		for (int i = 0; i < cboard.emptyCells.size(); i++) {
 			emptyCells.push_back(cboard.emptyCells[i]);
 		}
+
+		
 
 		player = cboard.getTurn();
 	}
@@ -84,6 +98,12 @@ public:
 
 	int capturingPlacement(int x, int y);//to be implemented
 
+	void setNeighbors(Cell target);
+	
+	int sumCells(priority_queue<Cell> Cells);
+
+	//int sumNeigbours(const vector<Cell>& target);
+
 	int getCol();
 
 	int getRow();
@@ -92,31 +112,145 @@ public:
 
 // CURRENTLY ONLY DOES PIP COUNT TODO:: EXTEND CODE TO CAPTURE!!!
 int Board::capturingPlacement(int x, int y) {
+
+	Cell placement(x, y, 0);
+
+	setNeighbors(placement);
+
+	//get neighbour cells of x,y and store in some data structure
+	
+	if (cellNeighbors.size() < 2) {
+		while (!cellNeighbors.empty()) {
+			cellNeighbors.pop();
+		}
+		return 1;
+	}
+	else if (cellNeighbors.size() == 2) {
+		/*
+		*	if (abs(pipsum)) <= 6
+		*		place with pipsum and remove neighbour moves
+		*	else
+		*		nothing to capture, add a 1 with the players sign
+		*/
+
+		if (sumCells(cellNeighbors) <= 6) {
+
+			placement.heuristic = sumCells(cellNeighbors);
+			
+			while (!cellNeighbors.empty()) {
+				grid[cellNeighbors.top().x][cellNeighbors.top().y] = 0; // set neigbor to 0
+				emptyCells.push_back(cellNeighbors.top().x * col + cellNeighbors.top().y); // add back to emptyCells
+				cellNeighbors.pop();
+			}
+
+			return placement.heuristic;
+		}
+		else {
+			while (!cellNeighbors.empty()) {
+				cellNeighbors.pop();
+			}
+			return 1;
+		}
+
+	}
+	else if (cellNeighbors.size() > 2) {
+		/*
+		*	if (abs(pipsum)) <= 6
+		*		place with pipsum and remove neighbour moves
+		*	else if (pipsum of any combo of 2 neigh's > 6)
+		*		nothing to capture, add a 1 with the players sign
+		*	else
+		*		capture combo that results in the highest pipsum placement
+		*/
+
+		if (sumCells(cellNeighbors) <= 6) {
+
+			placement.heuristic = sumCells(cellNeighbors);
+
+			while (!cellNeighbors.empty()) {
+				grid[cellNeighbors.top().x][cellNeighbors.top().y] = 0; // set neigbor to 0
+				emptyCells.push_back(cellNeighbors.top().x * col + cellNeighbors.top().y); // add back to emptyCells
+				cellNeighbors.pop();
+			}
+
+			return placement.heuristic;
+		}
+		else
+		{ 
+			while (!cellNeighbors.empty()) {
+				if (cellNeighbors.top().heuristic < 6) {
+					Cell temp = cellNeighbors.top();
+					cellNeighbors.pop();
+					while (!cellNeighbors.empty()) {
+						if (temp.heuristic + cellNeighbors.top().heuristic <= 6) {
+							placement.heuristic += (temp.heuristic + cellNeighbors.top().heuristic);
+
+							grid[cellNeighbors.top().x][cellNeighbors.top().y] = 0; // set neigbor to 0
+							emptyCells.push_back(cellNeighbors.top().x * col + cellNeighbors.top().y); // add back to emptyCells
+
+							grid[temp.x][temp.y] = 0; // set temp to 0
+							emptyCells.push_back(temp.x * col + temp.y); // add back to emptyCells
+							cellNeighbors.pop();
+						}
+						else {
+							temp = cellNeighbors.top();
+							cellNeighbors.pop();
+						}
+						
+						
+					}
+
+				}
+				else {
+					cellNeighbors.pop();
+				}
+			}
+			
+			if (placement.heuristic == 0) {
+				return 1;
+			}
+			return placement.heuristic;
+			
+		}
+
+	}
+}
+
+
+
+void Board::setNeighbors(Cell target) {
+	
 	const int OFFSETX[] = { 0, 1, 0, -1 };
 	const int OFFSETY[] = { -1, 0, 1, 0 };
-
-	int sum = 0;
-
-	queue<int> neighbourValues;
-
-	// populate queue with neighbours absolute values
+	
 	for (int i = 0; i < 4; i++) {
-		int nx = x + OFFSETX[i];
-		int ny = y + OFFSETY[i];
-		if (!(nx < 0 || ny < 0 || nx >= row || ny >= col)) {
-			neighbourValues.push(abs(grid[nx][ny]));
+		int nx = target.x + OFFSETX[i];
+		int ny = target.y + OFFSETY[i];
+		if (! (nx < 0 || ny < 0 || nx >= row || ny >= col)) {
+			if(abs(grid[nx][ny]) != 0){
+				cellNeighbors.push(Cell(nx, ny, abs(grid[nx][ny])));
+			}
+			
 		}
 	}
+}
 
-	// process queue into sum
-	while (!neighbourValues.empty()) {
-		sum += neighbourValues.front();
-		neighbourValues.pop();
+int Board::sumCells(priority_queue<Cell> Cells) {
+	int sum = 0;
+	
+	while (!Cells.empty()) {
+		sum += Cells.top().heuristic;
+		Cells.pop();
 	}
 
 	return sum;
-	return 1;
 }
+
+//int Board::sumNeigbours(vector<Cell>& neighbours) {
+//
+//}
+
+
 
 int Board::checkWinningStatus() {
 	if (!isBoardFull())
@@ -161,15 +295,17 @@ bool Board::addMove(int p, int x, int y) {
 	if (!validMove(x, y))
 		return false;
 
-	if (capturingPlacement(x, y) != 0) {
-		grid[x][y] = capturingPlacement(x, y) * player;
-	}
-	else {
-		grid[x][y] = player;
-	}
-	//grid[x][y] = player * capturingPlacement(x, y); TODO:: FUTURE TASK POTENTIAL
+	
+	grid[x][y] = capturingPlacement(x, y) * player;
 
 	emptyCells.erase(remove(emptyCells.begin(), emptyCells.end(), (x * col + y)), emptyCells.end()); // Remove empty cell now it's used
+
+	//TODO:: ineficeint when n is large
+	for (auto& n : cells) {
+		if (n.x == x && n.y == y) {
+			n.heuristic = abs(grid[x][y]);
+		}
+	}
 
 	player = -1 * player;
 
