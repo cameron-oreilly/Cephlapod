@@ -15,7 +15,7 @@ void RandomPlayer::getMove(Board board, int& x, int& y) {
 	if (board.isBoardFull())
 		return;
 	
-	int k = board.emptyCells[rand() % board.emptyCells.size()];
+	int k = board.ecGetVal(rand() % board.ecGetSize());
 	
 	x = k / board.getCol();
 	y = k % board.getCol();

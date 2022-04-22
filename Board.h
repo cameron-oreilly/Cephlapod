@@ -14,10 +14,11 @@ private:
 	int player; //1 = white; -1 = black
 	int **grid; // 0 = empty; other values for pip count; positive for white; negative for black
 	priority_queue<Cell> cellNeighbors; // Used to store the adjacent cells of a target cell
+	vector<int> emptyCells; // stores empty cells on the board at a given time
 
 public:
 
-	vector<int> emptyCells; // stores empty cells on the board at a given time
+	
 
 	Board(int r, int c) :
 			row(r), col(c) {
@@ -89,11 +90,17 @@ public:
 
 	void setNeighbors(Cell target);
 	
-	int sumCells(priority_queue<Cell> Cells);
+	int sumCells(priority_queue<Cell> Cells); // return the absolute value of the cells heuristic
 
-	int getCol();
+	int getCol(); // return amount of columns in the board
 
-	int getRow();
+	int getRow(); // return amount of rows in the board
+
+	int ecGetSize(); // ec -> emptyCells 
+
+	int ecGetVal(int i); // ec -> emptyCells
+
+	int heuristic(int player);
 };
 
 int Board::capturingPlacement(int x, int y) {
@@ -317,6 +324,27 @@ int Board::getCol() {
 
 int Board::getRow() {
 	return row;
+}
+
+
+int Board::ecGetSize() {
+	return emptyCells.size();
+}
+
+int Board::ecGetVal(int i) {
+	return emptyCells[i];
+}
+
+int Board::heuristic(int player) {
+	int pipcount = 0;
+	for (int i = 0; i < row; i++) {
+		for (int j = 0; j < col; j++) {
+			if (!((grid[i][j] ^ player) < 0)) {
+				pipcount += abs(grid[i][j]);
+			}
+		}
+	}
+	return pipcount;
 }
 
 #endif /* BOARD_H_ */
