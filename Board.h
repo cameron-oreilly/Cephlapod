@@ -13,13 +13,11 @@ private:
 	int row, col;
 	int player; //1 = white; -1 = black
 	int **grid; // 0 = empty; other values for pip count; positive for white; negative for black
-	vector<Cell> cells;
-	//vector<Cell> cellNeighbors;
-	priority_queue<Cell> cellNeighbors;
+	priority_queue<Cell> cellNeighbors; // Used to store the adjacent cells of a target cell
 
 public:
 
-	vector<int> emptyCells;
+	vector<int> emptyCells; // stores empty cells on the board at a given time
 
 	Board(int r, int c) :
 			row(r), col(c) {
@@ -30,7 +28,6 @@ public:
 		for (int i = 0; i < row; i++) {
 			for (int j = 0; j < col; j++) {
 				grid[i][j] = 0;
-				cells.push_back(Cell(i, j, grid[i][j]));
 				emptyCells.push_back(i * col + j); // init indicies of empty cells (k = x * n + y)
 			}
 		}
@@ -43,8 +40,6 @@ public:
 			delete[] grid[i];
 
 		delete[] grid;
-		
-		cells.clear();
 		
 	}
 
@@ -61,15 +56,9 @@ public:
 				grid[i][j] = cboard.grid[i][j];
 			}
 
-		for (int i = 0; i < cboard.cells.size(); i++) {
-			cells.push_back(cboard.cells[i]);
-		}
-
 		for (int i = 0; i < cboard.emptyCells.size(); i++) {
 			emptyCells.push_back(cboard.emptyCells[i]);
 		}
-
-		
 
 		player = cboard.getTurn();
 	}
@@ -96,28 +85,22 @@ public:
 
 	void printBoard();
 
-	int capturingPlacement(int x, int y);//to be implemented
+	int capturingPlacement(int x, int y);
 
 	void setNeighbors(Cell target);
 	
 	int sumCells(priority_queue<Cell> Cells);
 
-	//int sumNeigbours(const vector<Cell>& target);
-
 	int getCol();
 
 	int getRow();
-
 };
 
-// CURRENTLY ONLY DOES PIP COUNT TODO:: EXTEND CODE TO CAPTURE!!!
 int Board::capturingPlacement(int x, int y) {
 
 	Cell placement(x, y, 0);
 
 	setNeighbors(placement);
-
-	//get neighbour cells of x,y and store in some data structure
 	
 	if (cellNeighbors.size() < 2) {
 		while (!cellNeighbors.empty()) {
@@ -151,7 +134,6 @@ int Board::capturingPlacement(int x, int y) {
 			}
 			return 1;
 		}
-
 	}
 	else if (cellNeighbors.size() > 2) {
 		/*
@@ -178,28 +160,27 @@ int Board::capturingPlacement(int x, int y) {
 		else
 		{ 
 			while (!cellNeighbors.empty()) {
-				if (cellNeighbors.top().heuristic < 6) {
+				if (abs(cellNeighbors.top().heuristic) < 6) {
 					Cell temp = cellNeighbors.top();
 					cellNeighbors.pop();
 					while (!cellNeighbors.empty()) {
-						if (temp.heuristic + cellNeighbors.top().heuristic <= 6) {
-							placement.heuristic += (temp.heuristic + cellNeighbors.top().heuristic);
+						if (placement.heuristic + (abs(temp.heuristic) + abs(cellNeighbors.top().heuristic)) <= 6) {
+							placement.heuristic += (abs(temp.heuristic) + abs(cellNeighbors.top().heuristic));
 
 							grid[cellNeighbors.top().x][cellNeighbors.top().y] = 0; // set neigbor to 0
 							emptyCells.push_back(cellNeighbors.top().x * col + cellNeighbors.top().y); // add back to emptyCells
 
 							grid[temp.x][temp.y] = 0; // set temp to 0
 							emptyCells.push_back(temp.x * col + temp.y); // add back to emptyCells
+							temp = cellNeighbors.top();
 							cellNeighbors.pop();
+							
 						}
 						else {
 							temp = cellNeighbors.top();
 							cellNeighbors.pop();
 						}
-						
-						
 					}
-
 				}
 				else {
 					cellNeighbors.pop();
@@ -212,11 +193,8 @@ int Board::capturingPlacement(int x, int y) {
 			return placement.heuristic;
 			
 		}
-
 	}
 }
-
-
 
 void Board::setNeighbors(Cell target) {
 	
@@ -228,9 +206,8 @@ void Board::setNeighbors(Cell target) {
 		int ny = target.y + OFFSETY[i];
 		if (! (nx < 0 || ny < 0 || nx >= row || ny >= col)) {
 			if(abs(grid[nx][ny]) != 0){
-				cellNeighbors.push(Cell(nx, ny, abs(grid[nx][ny])));
+				cellNeighbors.push(Cell(nx, ny, grid[nx][ny]));
 			}
-			
 		}
 	}
 }
@@ -239,18 +216,12 @@ int Board::sumCells(priority_queue<Cell> Cells) {
 	int sum = 0;
 	
 	while (!Cells.empty()) {
-		sum += Cells.top().heuristic;
+		sum += abs(Cells.top().heuristic);
 		Cells.pop();
 	}
 
 	return sum;
 }
-
-//int Board::sumNeigbours(vector<Cell>& neighbours) {
-//
-//}
-
-
 
 int Board::checkWinningStatus() {
 	if (!isBoardFull())
@@ -299,13 +270,6 @@ bool Board::addMove(int p, int x, int y) {
 	grid[x][y] = capturingPlacement(x, y) * player;
 
 	emptyCells.erase(remove(emptyCells.begin(), emptyCells.end(), (x * col + y)), emptyCells.end()); // Remove empty cell now it's used
-
-	//TODO:: ineficeint when n is large
-	for (auto& n : cells) {
-		if (n.x == x && n.y == y) {
-			n.heuristic = abs(grid[x][y]);
-		}
-	}
 
 	player = -1 * player;
 

@@ -10,6 +10,7 @@ public:
 	void getMove(Board board, int&, int&);
 };
 
+//Get a random index from STL vectorand expand it into xand y board coordinates
 void RandomPlayer::getMove(Board board, int& x, int& y) {
 	if (board.isBoardFull())
 		return;
@@ -19,8 +20,6 @@ void RandomPlayer::getMove(Board board, int& x, int& y) {
 	x = k / board.getCol();
 	y = k % board.getCol();
 
-	//x = row ;
-	//y = col ;
 }
 
 #endif /* RANNDOMPLAYER_H_ */

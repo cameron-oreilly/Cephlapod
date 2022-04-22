@@ -16,7 +16,7 @@ struct Cell {
 	Cell(int xx, int yy, int hh):x(xx), y(yy), heuristic(hh) {}
 
 	bool operator<(const Cell& c) const {
-		return heuristic < c.heuristic;
+		return abs(heuristic) < abs(c.heuristic);
 	}
 	bool operator==(const Cell& c) const {
 		return (x == c.x && y == c.y);
